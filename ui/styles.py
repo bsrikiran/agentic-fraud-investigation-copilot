@@ -8,7 +8,8 @@ def apply_custom_css() -> None:
     st.markdown("""
         <style>
             /* Global Application Alignment and Typography */
-            .main .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+            [data-testid="stHeader"] { height: 1.5rem !important; min-height: 1.5rem !important; }
+            [data-testid="stMainBlockContainer"] { padding-top: 1.5rem !important; padding-bottom: 2rem; }
             h1, h2, h3 { color: #0F172A !important; font-family: 'Inter', -apple-system, sans-serif; }
 
             /* Metric Cards (Analytics KPIs) */
