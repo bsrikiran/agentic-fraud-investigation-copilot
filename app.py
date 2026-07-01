@@ -1,3 +1,18 @@
+# --- STREAMLIT CLOUD CHROMADB COMPATIBILITY PATCH ---
+import sys
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass
+# ----------------------------------------------------
+
+import logging
+import streamlit as st
+from ui.styles import apply_custom_css
+from ui.pages import render_home_view, render_investigation_pipeline_view, render_metrics_dashboard_view
+
+# ... rest of your existing app.py code ...
 """
 Purpose: Main application entry point for the Agentic Fraud Investigation Copilot UI.
 Orchestrates sidebar routing, layout templates configuration, and global logs.
