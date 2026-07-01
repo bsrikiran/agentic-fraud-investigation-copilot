@@ -37,7 +37,7 @@ def _resolved_risk(case_id: str, fallback_priority: str) -> str:
 
 def render_case_queue_view() -> None:
     """Landing view: today's operational snapshot, followed by the case queue."""
-    st.title("Case Queue")
+    st.title("Fraud Operations Dashboard")
     cases = load_investigation_cases()
 
     if not cases:
@@ -76,6 +76,7 @@ def render_case_queue_view() -> None:
     st.write("")
     st.write("---")
 
+    st.markdown("##### Case Queue")
     priority_counts = df["priority"].str.lower().value_counts()
     st.caption(
         f"{len(df)} cases in queue  —  "
