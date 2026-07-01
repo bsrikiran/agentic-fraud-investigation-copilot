@@ -56,6 +56,11 @@ def apply_custom_css() -> None:
                 padding-bottom: 0.4rem;
             }
 
+            /* Analyst identity block, top-right of every page */
+            .identity-header { text-align: right; margin-bottom: 0.5rem; }
+            .identity-name { font-weight: 600; color: #0F172A; font-size: 0.95rem; }
+            .identity-meta { font-size: 0.82rem; color: #64748B; margin-top: 0.1rem; }
+
             /* Case header bar (Investigation view) */
             .case-header {
                 border-bottom: 1px solid #E2E8F0;

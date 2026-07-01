@@ -37,8 +37,6 @@ def main() -> None:
         st.session_state["nav_radio"] = st.session_state.pop("_pending_nav")
 
     st.sidebar.markdown("### Agentic Fraud Investigation Copilot")
-    st.sidebar.caption(ANALYST_NAME)
-    st.sidebar.caption(f"{ANALYST_LOCATION} · {datetime.now().strftime('%B %d, %Y')}")
     st.sidebar.write("---")
 
     navigation_route = st.sidebar.radio(
@@ -49,6 +47,15 @@ def main() -> None:
 
     st.sidebar.write("---")
     st.sidebar.caption("Compliance Protection Enforced")
+
+    _, identity_col = st.columns([4, 1])
+    with identity_col:
+        st.markdown(f"""
+            <div class="identity-header">
+                <div class="identity-name">{ANALYST_NAME}</div>
+                <div class="identity-meta">{ANALYST_LOCATION} · {datetime.now().strftime('%B %d, %Y')}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
     if navigation_route == "Home":
         logger.info("Rendering case queue view.")
