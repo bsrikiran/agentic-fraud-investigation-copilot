@@ -12,6 +12,22 @@ def apply_custom_css() -> None:
             [data-testid="stMainBlockContainer"] { padding-top: 1.5rem !important; padding-bottom: 2rem; }
             h1, h2, h3 { color: #0F172A !important; font-family: 'Inter', -apple-system, sans-serif; }
 
+            /* AI System Status banner */
+            .status-banner {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.5rem 0.9rem;
+                border-radius: 4px;
+                font-size: 0.85rem;
+                margin-bottom: 1.25rem;
+            }
+            .status-banner.status-ok { background-color: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
+            .status-banner.status-down { background-color: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
+            .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+            .status-banner.status-ok .status-dot { background-color: #22C55E; }
+            .status-banner.status-down .status-dot { background-color: #EF4444; }
+
             /* Metric Cards (Analytics KPIs) */
             .metric-container {
                 background-color: #F8FAFC;

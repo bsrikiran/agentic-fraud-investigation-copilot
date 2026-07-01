@@ -14,7 +14,46 @@ from ui.components import (
     ANALYST_NAME,
 )
 from rag.retriever import retrieve_policy_matches, format_policy_context, format_policy_citations
+from rag.vector_store import PolicyVectorStore
 from backend.investigator import run_investigation
+from backend.config import validate_config, OPENAI_MODEL
+
+@st.cache_data(ttl=30)
+def _get_ai_system_status() -> dict:
+    """Checks whether the AI investigation engine (LLM credentials + policy knowledge base) is operational."""
+    llm_ready = validate_config()
+    document_count = 0
+    try:
+        records = PolicyVectorStore().collection.get(include=["metadatas"])
+        document_count = len({m["source_file"] for m in records["metadatas"]})
+    except Exception:
+        pass
+    return {
+        "operational": llm_ready and document_count > 0,
+        "llm_ready": llm_ready,
+        "model": OPENAI_MODEL,
+        "document_count": document_count,
+    }
+
+def render_ai_system_status() -> None:
+    """Renders a compact banner reporting whether the AI engine is ready to run investigations."""
+    status = _get_ai_system_status()
+    if status["operational"]:
+        st.markdown(f"""
+            <div class="status-banner status-ok">
+                <span class="status-dot"></span>
+                AI System Operational &nbsp;·&nbsp; Model: {status['model']} &nbsp;·&nbsp;
+                Policy Knowledge Base: {status['document_count']} documents indexed
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        reason = "OPENAI_API_KEY is not configured" if not status["llm_ready"] else "Policy knowledge base is empty"
+        st.markdown(f"""
+            <div class="status-banner status-down">
+                <span class="status-dot"></span>
+                AI System Unavailable &nbsp;·&nbsp; {reason}
+            </div>
+        """, unsafe_allow_html=True)
 
 def _derive_status(case_id: str, fallback: str) -> str:
     """Resolves a case's current display status: a recorded disposition takes precedence
@@ -37,6 +76,7 @@ def _resolved_risk(case_id: str, fallback_priority: str) -> str:
 def render_case_queue_view() -> None:
     """Landing view: today's operational snapshot, followed by the case queue."""
     st.title("Fraud Operations Dashboard")
+    render_ai_system_status()
     cases = load_investigation_cases()
 
     if not cases:
