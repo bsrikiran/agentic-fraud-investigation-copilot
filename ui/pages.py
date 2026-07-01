@@ -11,11 +11,10 @@ from ui.components import (
     tier_variant,
     case_status_variant,
     resolve_case_id,
+    ANALYST_NAME,
 )
 from rag.retriever import retrieve_policy_matches, format_policy_context, format_policy_citations
 from backend.investigator import run_investigation
-
-ANALYST_NAME = "Senior Fraud Risk Analyst"
 
 def _derive_status(case_id: str, fallback: str) -> str:
     """Resolves a case's current display status: a recorded disposition takes precedence

@@ -9,6 +9,9 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("ui.components")
 
+ANALYST_NAME = "Sr Fraud Investigator"
+ANALYST_LOCATION = "Wilmington, DE"
+
 @st.cache_data
 def load_investigation_cases() -> List[Dict[str, Any]]:
     """Loads operational anomalies portfolio logs directly from project data caches."""

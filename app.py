@@ -9,10 +9,12 @@ except ImportError:
 
 # Purpose: Main application entry point for the Agentic Fraud Investigation Copilot UI.
 # Orchestrates sidebar routing, layout templates configuration, and global logs.
+from datetime import datetime
 import logging
 import streamlit as st
 from ui.styles import apply_custom_css
 from ui.pages import render_case_queue_view, render_investigation_view, render_analytics_view
+from ui.components import ANALYST_NAME, ANALYST_LOCATION
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ui.main_app")
@@ -35,6 +37,10 @@ def main() -> None:
         st.session_state["nav_radio"] = st.session_state.pop("_pending_nav")
 
     st.sidebar.markdown("### Agentic Fraud Investigation Copilot")
+    st.sidebar.caption(ANALYST_NAME)
+    st.sidebar.caption(f"{ANALYST_LOCATION} · {datetime.now().strftime('%B %d, %Y')}")
+    st.sidebar.write("---")
+
     navigation_route = st.sidebar.radio(
         "Navigate",
         ["Home", "Investigation", "Analytics"],
@@ -43,7 +49,6 @@ def main() -> None:
 
     st.sidebar.write("---")
     st.sidebar.caption("Compliance Protection Enforced")
-    st.sidebar.caption("Role: Senior Fraud Risk Analyst")
 
     if navigation_route == "Home":
         logger.info("Rendering case queue view.")
