@@ -36,20 +36,50 @@ def render_investigation_pipeline_view() -> None:
         st.warning("No operational investigation entities found within active local data clusters.")
         return
         
-    # Case Selector Control Node
-    case_ids = [c.get("transaction", {}).get("transaction_id", "UNKNOWN-ID") for c in cases]
+    # --- FIXED & HARDENED ADAPTIVE DROP-DOWN PARSING ---
+    case_ids = []
+    for idx, c in enumerate(cases):
+        # Strategy 1: Check root level
+        tid = c.get("transaction_id")
+        
+        # Strategy 2: Check nested 'transaction' block
+        if not tid and isinstance(c.get("transaction"), dict):
+            tid = c.get("transaction", {}).get("transaction_id")
+            
+        # Strategy 3: Check common alternatives or fall back to an index string
+        if not tid:
+            tid = c.get("case_id") or c.get("id") or f"CASE-TICKET-{idx+1:03d}"
+            
+        case_ids.append(str(tid))
+        
     selected_id = st.selectbox("Select Active Risk Ticket ID for Evaluation:", case_ids)
     
-    # Locate targeted data structures mapping indices records safely
-    case_package = next((c for c in cases if c.get("transaction", {}).get("transaction_id") == selected_id), None)
-    
+    # Locate targeted data structures matching the selected ID safely
+    # This matching block handles both nested and flat root variations perfectly
+    case_package = None
+    for idx, c in enumerate(cases):
+        current_id = (
+            c.get("transaction_id") or 
+            c.get("transaction", {}).get("transaction_id") if isinstance(c.get("transaction"), dict) else None or
+            c.get("case_id") or c.get("id") or f"CASE-TICKET-{idx+1:03d}"
+        )
+        if str(current_id) == selected_id:
+            case_package = c
+            break
+            
     if not case_package:
         st.error("Data routing configuration anomaly: target payload map references not found.")
         return
         
-    txn = case_package.get("transaction", {})
-    hist = case_package.get("customer_history", {})
-    
+    # Normalize our data blocks so downstream metrics render cleanly regardless of original file layout
+    if "transaction" in case_package and isinstance(case_package["transaction"], dict):
+        txn = case_package["transaction"]
+        hist = case_package.get("customer_history", {})
+    else:
+        # If the JSON file is flat at the root level, treat the whole case object as the transaction parameters
+        txn = case_package
+        hist = case_package.get("customer_history") or case_package
+    # ---------------------------------------------------    
     # Display Case Properties in crisp dual-column subgrids
     st.subheader("Transaction Metadata Details")
     col1, col2, col3 = st.columns(3)
