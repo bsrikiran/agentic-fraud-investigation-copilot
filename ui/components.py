@@ -33,19 +33,45 @@ def render_metric_card(label: str, value: Any, delta_status: Optional[str] = Non
         </div>
     """, unsafe_allow_html=True)
 
+# Change the arrow at the end to -> pd.DataFrame
 def parse_cases_dataframe(cases: List[Dict[str, Any]]) -> pd.DataFrame:
-    """Transforms raw record collections directly into standard tracking dataframes."""
+    """Transforms raw record collections directly into standard tracking dataframes adaptively."""
     flattened_rows = []
-    for c in cases:
-        txn = c.get("transaction", {})
-        hist = c.get("customer_history", {})
+    for idx, c in enumerate(cases):
+        # 1. Adaptively isolate the transaction dataset block (handles nested or flat root)
+        if "transaction" in c and isinstance(c["transaction"], dict):
+            txn = c["transaction"]
+            hist = c.get("customer_history", {})
+        else:
+            txn = c
+            hist = c.get("customer_history") or c
+
+        # 2. Extract value variables with bulletproof structural fallbacks
+        case_id = str(
+            txn.get("transaction_id") or 
+            c.get("transaction_id") or 
+            c.get("case_id") or 
+            c.get("id") or 
+            f"CASE-{idx+1:03d}"
+        )
+        customer = txn.get("customer_name") or txn.get("customer", "N/A")
+        amount = float(txn.get("amount") or 0.0)
+        merchant = txn.get("merchant", "N/A")
+        location = txn.get("location", "N/A")
+        
+        # 3. Extract customer history baselines metrics safely
+        avg_spending = float(hist.get("average_transaction") or 0.0)
+        past_fraud = int(hist.get("previous_fraud_cases") or 0)
+        
         flattened_rows.append({
-            "case_id": txn.get("transaction_id", "N/A"),
-            "customer": txn.get("customer_name", "N/A"),
-            "amount": txn.get("amount", 0.0),
-            "merchant": txn.get("merchant", "N/A"),
-            "location": txn.get("location", "N/A"),
-            "avg_spending": hist.get("average_transaction", 0.0),
-            "past_fraud": hist.get("previous_fraud_cases", 0)
+            "case_id": case_id,
+            "customer": customer,
+            "amount": amount,
+            "merchant": merchant,
+            "location": location,
+            "avg_spending": avg_spending,
+            "past_fraud": past_fraud
         })
+        
     return pd.DataFrame(flattened_rows)
+
