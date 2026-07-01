@@ -1,14 +1,16 @@
 """
-Purpose: Smoke test script for validating the backend module end-to-end.
+Purpose: End-to-end integrated smoke test fusing the RAG module and Backend engine.
 """
 import logging
 from backend.investigator import run_investigation
+from rag.retriever import retrieve_policy_context
 
 if __name__ == "__main__":
-    # Enable info logs so we can see the workflow steps
-    logging.basicConfig(level=logging.INFO)
+    # Configure logs to capture the integrated workflow steps cleanly
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    print("\n=== STARTING END-TO-END INTEGRATED INVESTIGATION TEST ===")
     
-    # 1. Mock Transaction data mapping
+    # 1. High-risk mock transaction data payload matching contract definitions
     mock_txn = {
         "transaction_id": "TXN-10001", 
         "customer_id": "CUST-1001", 
@@ -26,7 +28,7 @@ if __name__ == "__main__":
         "travel_notice": False
     }
     
-    # 2. Mock Customer History profile data
+    # 2. Historical profile parameters tracking standard baseline user performance
     mock_history = {
         "average_transaction": 95.00, 
         "highest_transaction": 820.00,
@@ -35,20 +37,24 @@ if __name__ == "__main__":
         "preferred_locations": ["Virginia", "Maryland"]
     }
     
-    # 3. Mock Policy Context text block matching RAG outputs
-    mock_policy = "Transactions above $2000 originating from an unknown device require step-up authentication."
+    # 3. STEP 1: Invoke RAG Semantic Search over our 10 ingested PDF policies
+    # We formulate a real investigation search intent statement query
+    search_query = "Unknown device high-value transaction above 2000 dollars"
+    print(f"\n[RAG] Searching knowledge base for context matching: '{search_query}'...")
+    
+    real_policy_context = retrieve_policy_context(query=search_query, top_k=2)
+    print("\n--- RETRIEVED RAG CONTEXT BLOCK START ---")
+    print(real_policy_context if real_policy_context else "[Empty Context - Proceeding on base rules]")
+    print("--- RETRIEVED RAG CONTEXT BLOCK END ---\n")
 
-    # 4. FIX: Provide 'customer_profile' explicitly if your INVESTIGATION_PROMPT_V1 demands it.
-    # If your prompt template uses a combined map, we can map it to history or a placeholder string.
-    # Let's map it into the arguments safely:
-    try:
-        # We invoke the function using the contract interface keywords
-        output_result = run_investigation(
-            transaction=mock_txn, 
-            customer_history=mock_history, 
-            policy_context=mock_policy
-        )
-        print("\n=== SMOKE TEST OUTPUT RESULT ===")
-        print(output_result)
-    except Exception as e:
-        print(f"Test orchestration error: {e}")
+    # 4. STEP 2: Feed the live retrieved context directly into the Backend Agent
+    print("[BACKEND] Forwarding transaction analytics and real policy metrics downstream...")
+    output_result = run_investigation(
+        transaction=mock_txn, 
+        customer_history=mock_history, 
+        policy_context=real_policy_context
+    )
+    
+    print("\n=== FINAL COPILOT AGENT PAYLOAD JSON OUTPUT ===")
+    import json
+    print(json.dumps(output_result, indent=2))
