@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional, Tuple
 logger = logging.getLogger("ui.components")
 
 ANALYST_NAME = "Sr Fraud Investigator"
+FRAUD_MANAGER_NAME = "Fraud Manager"
 ANALYST_LOCATION = "Wilmington, DE"
 
 @st.cache_data
@@ -75,7 +76,20 @@ def case_status_variant(status_label: str) -> str:
         "declined": "declined",
         "escalated": "escalated",
         "under review": "review",
+        "closed": "closed",
+        "returned": "escalated",
     }.get(status_label.strip().lower(), "neutral")
+
+def render_decision_record(decision: str, notes: str, actor: str, timestamp: str) -> None:
+    """Renders a locked decision record: a badge, the rationale notes, and who/when.
+    Shared by the analyst's disposition and the Fraud Manager's approval decision."""
+    st.markdown(f"""
+        <div class="decision-record">
+            {badge_html(decision, case_status_variant(decision))}
+            <div class="decision-record-note">{notes}</div>
+            <div class="decision-record-meta">Reviewed by {actor} · {timestamp}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
 CASE_FLOW_STAGES = ["Open", "Under Review", "Waiting for Approval", "Closed"]
 

@@ -60,6 +60,7 @@ def apply_custom_css() -> None:
             .badge-declined   { background-color: #FEE2E2; color: #B91C1C; }
             .badge-escalated  { background-color: #FEF3C7; color: #92400E; }
             .badge-review     { background-color: #DBEAFE; color: #1D4ED8; }
+            .badge-closed     { background-color: #0F172A; color: #F8FAFC; }
 
             /* Case Queue rows */
             .queue-row {

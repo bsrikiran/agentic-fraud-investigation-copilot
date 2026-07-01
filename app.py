@@ -13,11 +13,21 @@ from datetime import datetime
 import logging
 import streamlit as st
 from ui.styles import apply_custom_css
-from ui.pages import render_case_queue_view, render_investigation_view, render_analytics_view
-from ui.components import ANALYST_NAME, ANALYST_LOCATION
+from ui.pages import (
+    render_case_queue_view,
+    render_investigation_view,
+    render_analytics_view,
+    render_manager_queue_view,
+)
+from ui.components import ANALYST_NAME, FRAUD_MANAGER_NAME, ANALYST_LOCATION
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ui.main_app")
+
+ROLE_NAV_OPTIONS = {
+    ANALYST_NAME: ["Home", "Investigation", "Analytics"],
+    FRAUD_MANAGER_NAME: ["Manager Queue", "Investigation", "Analytics"],
+}
 
 def main() -> None:
     """Configures main workspace layout wrappers, tracking sidebars navigation matrices options."""
@@ -37,13 +47,14 @@ def main() -> None:
         st.session_state["nav_radio"] = st.session_state.pop("_pending_nav")
 
     st.sidebar.markdown("### Agentic Fraud Investigation Copilot")
+    current_role = st.sidebar.radio("Role", [ANALYST_NAME, FRAUD_MANAGER_NAME], key="current_role")
     st.sidebar.write("---")
 
-    navigation_route = st.sidebar.radio(
-        "Navigate",
-        ["Home", "Investigation", "Analytics"],
-        key="nav_radio"
-    )
+    nav_options = ROLE_NAV_OPTIONS[current_role]
+    if st.session_state.get("nav_radio") not in nav_options:
+        st.session_state["nav_radio"] = nav_options[0]
+
+    navigation_route = st.sidebar.radio("Navigate", nav_options, key="nav_radio")
 
     st.sidebar.write("---")
     st.sidebar.caption("Compliance Protection Enforced")
@@ -52,7 +63,7 @@ def main() -> None:
     with identity_col:
         st.markdown(f"""
             <div class="identity-header">
-                <div class="identity-name">{ANALYST_NAME}</div>
+                <div class="identity-name">{current_role}</div>
                 <div class="identity-meta">{ANALYST_LOCATION} · {datetime.now().strftime('%B %d, %Y')}</div>
             </div>
         """, unsafe_allow_html=True)
@@ -60,9 +71,12 @@ def main() -> None:
     if navigation_route == "Home":
         logger.info("Rendering case queue view.")
         render_case_queue_view()
+    elif navigation_route == "Manager Queue":
+        logger.info("Rendering Fraud Manager approval queue view.")
+        render_manager_queue_view()
     elif navigation_route == "Investigation":
-        logger.info("Rendering investigation workspace view.")
-        render_investigation_view()
+        logger.info(f"Rendering investigation workspace view for role: {current_role}.")
+        render_investigation_view(current_role)
     elif navigation_route == "Analytics":
         logger.info("Rendering analytics view.")
         render_analytics_view()
