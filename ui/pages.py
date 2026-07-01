@@ -11,6 +11,7 @@ from ui.components import (
     tier_variant,
     case_status_variant,
     resolve_case_id,
+    render_case_flow,
     ANALYST_NAME,
 )
 from rag.retriever import retrieve_policy_matches, format_policy_context, format_policy_citations
@@ -185,6 +186,8 @@ def render_investigation_view() -> None:
     disposition = disposition_records.get(selected_id)
     result = case_results.get(selected_id)
     status_label = _derive_status(selected_id, case_package.get("case_status", "New"))
+
+    render_case_flow(status_label)
 
     # 1. Case header
     case_location = txn.get('location') or txn.get('transaction_location')

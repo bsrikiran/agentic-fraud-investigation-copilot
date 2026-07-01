@@ -54,6 +54,38 @@ def case_status_variant(status_label: str) -> str:
         "under review": "review",
     }.get(status_label.strip().lower(), "neutral")
 
+CASE_FLOW_STAGES = ["Open", "Under Review", "Waiting for Approval", "Closed"]
+
+def _flow_stage_index(status_label: str) -> int:
+    """Maps a case's derived status to its position in the lifecycle flow.
+    A submitted analyst disposition (Approved/Declined/Escalated) moves the case to
+    'Waiting for Approval' rather than 'Closed' - it isn't final until a Fraud Manager
+    signs off, which isn't built yet."""
+    status = status_label.strip().lower()
+    if status == "new":
+        return 0
+    if status == "under review":
+        return 1
+    if status in ("approved", "declined", "escalated"):
+        return 2
+    if status == "closed":
+        return 3
+    return 0
+
+def render_case_flow(status_label: str) -> None:
+    """Renders the case lifecycle stepper: Open -> Under Review -> Waiting for Approval -> Closed,
+    highlighting the case's current stage."""
+    current_index = _flow_stage_index(status_label)
+    parts = ['<div class="flow-stepper">']
+    for i, stage in enumerate(CASE_FLOW_STAGES):
+        state = "done" if i < current_index else ("current" if i == current_index else "")
+        parts.append(f'<div class="flow-step {state}"><div class="flow-dot"></div><div class="flow-label">{stage}</div></div>')
+        if i < len(CASE_FLOW_STAGES) - 1:
+            connector_state = "done" if i < current_index else ""
+            parts.append(f'<div class="flow-connector {connector_state}"></div>')
+    parts.append("</div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+
 def resolve_case_id(c: Dict[str, Any], idx: int) -> str:
     """Resolves a stable ID for a case record, regardless of nested vs. flat structure.
     Used everywhere a case is identified (queue rows, selectors, lookups) so different views

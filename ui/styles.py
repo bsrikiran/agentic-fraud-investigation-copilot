@@ -78,6 +78,21 @@ def apply_custom_css() -> None:
             .identity-name { font-weight: 600; color: #0F172A; font-size: 0.95rem; }
             .identity-meta { font-size: 0.82rem; color: #64748B; margin-top: 0.1rem; }
 
+            /* Case lifecycle flow stepper (Investigation view) */
+            .flow-stepper { display: flex; align-items: flex-start; margin: 0.25rem 0 1.75rem 0; }
+            .flow-step { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+            .flow-dot {
+                width: 16px; height: 16px; border-radius: 50%;
+                border: 2px solid #CBD5E1; background-color: #FFFFFF; box-sizing: border-box;
+            }
+            .flow-step.done .flow-dot { background-color: #0F172A; border-color: #0F172A; }
+            .flow-step.current .flow-dot { background-color: #FFFFFF; border-color: #0284C7; box-shadow: 0 0 0 3px rgba(2,132,199,0.18); }
+            .flow-label { font-size: 0.78rem; color: #94A3B8; white-space: nowrap; }
+            .flow-step.done .flow-label { color: #475569; font-weight: 500; }
+            .flow-step.current .flow-label { color: #0284C7; font-weight: 700; }
+            .flow-connector { flex: 1 1 auto; height: 2px; background-color: #E2E8F0; margin: 7px 0.5rem 0 0.5rem; min-width: 24px; }
+            .flow-connector.done { background-color: #0F172A; }
+
             /* Case header bar (Investigation view) */
             .case-header {
                 border-bottom: 1px solid #E2E8F0;
