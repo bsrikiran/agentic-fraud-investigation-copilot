@@ -474,6 +474,23 @@ def render_analytics_view() -> None:
         st.warning("No cases found in the active data source.")
         return
 
+    st.markdown("##### Business Impact")
+    case_results = st.session_state.setdefault("case_results", {})
+    investigated_count = len(case_results)
+    time_saved_minutes = investigated_count * ASSUMED_MANUAL_MINUTES_PER_CASE
+    time_saved_display = f"{time_saved_minutes // 60}h {time_saved_minutes % 60}m" if investigated_count else "0m"
+    approve_count = sum(1 for r in case_results.values() if r.get("recommendation") == "Approve")
+    reduction_pct = (approve_count / investigated_count * 100) if investigated_count else 0
+
+    render_kpi_row([
+        ("Est. Investigation Time Saved", time_saved_display),
+        ("Manual Review Reduction", f"{reduction_pct:.0f}%"),
+        ("AI Recommendations Generated", investigated_count),
+    ])
+    st.caption(f"Time saved assumes ~{ASSUMED_MANUAL_MINUTES_PER_CASE} manual minutes per AI-assisted case reviewed today.")
+
+    st.write("---")
+
     df = parse_cases_dataframe(cases)
     priority_counts = df["priority"].str.lower().value_counts()
 
@@ -498,21 +515,6 @@ def render_analytics_view() -> None:
     )
 
     st.write("---")
-
-    st.markdown("##### Business Impact")
-    case_results = st.session_state.setdefault("case_results", {})
-    investigated_count = len(case_results)
-    time_saved_minutes = investigated_count * ASSUMED_MANUAL_MINUTES_PER_CASE
-    time_saved_display = f"{time_saved_minutes // 60}h {time_saved_minutes % 60}m" if investigated_count else "0m"
-    approve_count = sum(1 for r in case_results.values() if r.get("recommendation") == "Approve")
-    reduction_pct = (approve_count / investigated_count * 100) if investigated_count else 0
-
-    render_kpi_row([
-        ("Est. Investigation Time Saved", time_saved_display),
-        ("Manual Review Reduction", f"{reduction_pct:.0f}%"),
-        ("AI Recommendations Generated", investigated_count),
-    ])
-    st.caption(f"Time saved assumes ~{ASSUMED_MANUAL_MINUTES_PER_CASE} manual minutes per AI-assisted case reviewed today.")
 
     with st.expander("About this system"):
         st.markdown(
