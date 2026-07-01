@@ -1,202 +1,294 @@
 """
 Purpose: Assembling main dashboard view configurations, interaction workflows, and charts.
 """
+from datetime import datetime
 import streamlit as st
-import pandas as pd
-from ui.components import load_investigation_cases, render_metric_card, parse_cases_dataframe
-from ui.styles import apply_custom_css
+from ui.components import (
+    load_investigation_cases,
+    render_metric_card,
+    parse_cases_dataframe,
+    badge_html,
+    tier_variant,
+    case_status_variant,
+    resolve_case_id,
+)
 from rag.retriever import retrieve_policy_matches, format_policy_context, format_policy_citations
 from backend.investigator import run_investigation
 
-def render_home_view() -> None:
-    """Displays project metadata overview tracking matrices."""
-    st.title("🛡️ Agentic Fraud Investigation Copilot")
-    st.caption("Enterprise Infrastructure Control Console | Fraud Operations Management Matrix")
-    st.write("")
-    
-    st.markdown("""
-    ### System Overview
-    This solution acts as an intelligent assistant tailored for fraud risk analyst workflows. 
-    It dynamically isolates transaction anomalies, queries compliance rules directly from text repositories using semantic vector retrieval, and outputs explainable structural indicators to maximize evaluation consistency.
-    
-    ### Architectural Core Stack
-    * **Backend Pipeline Layers**: Python 3.12 Engine / Pydantic Verification Contract Constraints / OpenAI Core
-    * **Knowledge Indexing Engine (RAG)**: ChromaDB Persistent Vector Tables / Semantic Similarity Search
-    * **Presentation Controls Node**: Streamlit Operations Dashboard Suite Layout Framework
-    """)
-    st.write("")
-    st.info("System Ready. Click the navigation options above to initiate active transaction validation runs.")
+ANALYST_NAME = "Senior Fraud Risk Analyst"
 
-def _resolve_case_id(c: dict, idx: int) -> str:
-    """Resolves a stable ID for a case record, regardless of nested vs. flat structure."""
-    tid = c.get("transaction_id")
-    if not tid and isinstance(c.get("transaction"), dict):
-        tid = c["transaction"].get("transaction_id")
-    if not tid:
-        tid = c.get("case_id") or c.get("id") or f"CASE-TICKET-{idx+1:03d}"
-    return str(tid)
+def _derive_status(case_id: str, fallback: str) -> str:
+    """Resolves a case's current display status: a recorded disposition takes precedence
+    over an in-progress investigation, which takes precedence over the case's original status."""
+    disposition_records = st.session_state.get("disposition_records", {})
+    case_results = st.session_state.get("case_results", {})
+    disposition = disposition_records.get(case_id)
+    if disposition:
+        return disposition["decision"]
+    if case_id in case_results:
+        return "Under Review"
+    return fallback
 
-def render_investigation_pipeline_view() -> None:
-    """Orchestrates multi-turn review sessions, execution requests, and charts responses."""
-    st.title("🔎 Automated Evaluation Workbench")
+def render_case_queue_view() -> None:
+    """Landing view: the analyst's queue of cases awaiting review."""
+    st.title("Case Queue")
     cases = load_investigation_cases()
 
     if not cases:
-        st.warning("No operational investigation entities found within active local data clusters.")
+        st.warning("No cases found in the active data source.")
         return
 
-    case_ids = [_resolve_case_id(c, idx) for idx, c in enumerate(cases)]
-    selected_id = st.selectbox("Select Active Risk Ticket ID for Evaluation:", case_ids)
+    df = parse_cases_dataframe(cases)
+    df["status"] = [_derive_status(cid, cs) for cid, cs in zip(df["case_id"], df["case_status"])]
 
-    # Locate the case matching the selected ID using the same resolution logic as the dropdown
+    priority_counts = df["priority"].str.lower().value_counts()
+    st.caption(
+        f"{len(df)} cases in queue  —  "
+        f"{int(priority_counts.get('high', 0))} High · "
+        f"{int(priority_counts.get('medium', 0))} Medium · "
+        f"{int(priority_counts.get('low', 0))} Low priority"
+    )
+    st.write("")
+
+    col_widths = [1.2, 1.4, 1.4, 1.0, 0.9, 1.1, 0.8]
+    header_cols = st.columns(col_widths)
+    for col, label in zip(header_cols, ["Case ID", "Customer", "Merchant", "Amount", "Priority", "Status", ""]):
+        col.markdown(f'<div class="queue-header">{label}</div>', unsafe_allow_html=True)
+
+    for _, row in df.iterrows():
+        cols = st.columns(col_widths)
+        cols[0].markdown(f"**{row['case_id']}**")
+        cols[1].write(row["customer"])
+        cols[2].write(row["merchant"])
+        cols[3].write(f"{row['amount']:,.2f}")
+        cols[4].markdown(badge_html(row["priority"], tier_variant(row["priority"])), unsafe_allow_html=True)
+        cols[5].markdown(badge_html(row["status"], case_status_variant(row["status"])), unsafe_allow_html=True)
+        if cols[6].button("Open", key=f"open_{row['case_id']}", use_container_width=True):
+            st.session_state["selected_case_id"] = row["case_id"]
+            st.session_state["_pending_nav"] = "Investigation"
+            st.rerun()
+
+    with st.expander("About this system"):
+        st.markdown(
+            "The Agentic Fraud Investigation Copilot assists fraud analysts by reviewing flagged "
+            "transactions, retrieving relevant internal policy guidance, and producing an "
+            "evidence-based recommendation. All recommendations are advisory — the analyst "
+            "makes the final decision."
+        )
+
+def render_investigation_view() -> None:
+    """Single-case investigation workspace: facts, AI assessment, evidence, and analyst disposition."""
+    st.title("Investigation")
+    cases = load_investigation_cases()
+
+    if not cases:
+        st.warning("No cases found in the active data source.")
+        return
+
+    case_ids = [resolve_case_id(c, idx) for idx, c in enumerate(cases)]
+    selected_id = st.selectbox("Case", case_ids, key="selected_case_id")
+
     case_package = None
     for idx, c in enumerate(cases):
-        if _resolve_case_id(c, idx) == selected_id:
+        if resolve_case_id(c, idx) == selected_id:
             case_package = c
             break
-            
+
     if not case_package:
-        st.error("Data routing configuration anomaly: target payload map references not found.")
+        st.error("Case not found.")
         return
-        
-    # Normalize our data blocks so downstream metrics render cleanly regardless of original file layout
+
     if "transaction" in case_package and isinstance(case_package["transaction"], dict):
         txn = case_package["transaction"]
         hist = case_package.get("customer_history", {})
     else:
-        # If the JSON file is flat at the root level, treat the whole case object as the transaction parameters
         txn = case_package
         hist = case_package.get("customer_history") or case_package
-    # ---------------------------------------------------    
-    # Display Case Properties in crisp dual-column subgrids
-    st.subheader("Transaction Metadata Details")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.text(f"Customer Name: {txn.get('customer_name')}")
-        st.text(f"Financial Value: {txn.get('currency', 'USD')} {txn.get('amount'):,}")
-    with col2:
-        st.text(f"Counterparty Merchant: {txn.get('merchant')}")
-        st.text(f"Location Zone: {txn.get('location') or txn.get('transaction_location')}")
-    with col3:
-        st.text(f"Device Known: {'Yes' if txn.get('known_device') else 'No (New Fingerprint)'}")
-        st.text(f"Travel Profile Active: {'Yes' if txn.get('travel_notice') else 'No Notification'}")
+
+    case_results = st.session_state.setdefault("case_results", {})
+    disposition_records = st.session_state.setdefault("disposition_records", {})
+    disposition = disposition_records.get(selected_id)
+    result = case_results.get(selected_id)
+    status_label = _derive_status(selected_id, case_package.get("case_status", "New"))
+
+    # 1. Case header
+    case_location = txn.get('location') or txn.get('transaction_location')
+    st.markdown(f"""
+        <div class="case-header">
+            <div class="case-header-id">{selected_id} — {txn.get('customer_name', 'Unknown Customer')}</div>
+            <div class="case-header-meta">
+                Opened {case_package.get('created_date', 'N/A')} &nbsp;·&nbsp;
+                Priority: {case_package.get('priority', 'N/A')} &nbsp;&nbsp;
+                {badge_html(status_label, case_status_variant(status_label))}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # 2. Case facts
+    fact_col1, fact_col2 = st.columns(2)
+    with fact_col1:
+        st.markdown("##### Transaction")
+        st.markdown(
+            f"**Amount**   {txn.get('currency', 'USD')} {txn.get('amount', 0):,.2f}  \n"
+            f"**Merchant**   {txn.get('merchant', 'N/A')} ({txn.get('merchant_category', 'N/A')})  \n"
+            f"**Location**   {case_location or 'N/A'}  \n"
+            f"**Device**   {'Known' if txn.get('known_device') else 'Unrecognized'}  \n"
+            f"**Travel Notice**   {'On file' if txn.get('travel_notice') else 'None'}"
+        )
+    with fact_col2:
+        st.markdown("##### Customer History")
+        st.markdown(
+            f"**Average Transaction**   {hist.get('average_transaction', 'N/A')}  \n"
+            f"**Highest Transaction**   {hist.get('highest_transaction', 'N/A')}  \n"
+            f"**Prior Fraud Cases**   {hist.get('previous_fraud_cases', 0)}"
+        )
 
     st.write("---")
-    
-    # Core Application Workflow Trigger Execution Button Node
-    if st.button("Execute Automated Investigation Sequence", type="primary"):
-        with st.spinner("Retrieving compliance parameters and downloading AI evaluation arrays..."):
-            
-            # Step 1: Query contextual data structures directly out of RAG Vector stores
-            case_location = txn.get('location') or txn.get('transaction_location')
-            search_query = f"{txn.get('merchant_category')} purchase of {txn.get('amount')} via {txn.get('device')} location {case_location}"
+
+    # 3. Action bar
+    action_label = "Re-run Investigation" if result else "Run Investigation"
+    button_type = "secondary" if result else "primary"
+    if st.button(action_label, type=button_type):
+        with st.spinner("Retrieving policy context and running investigation..."):
+            search_query = (
+                f"{txn.get('merchant_category')} purchase of {txn.get('amount')} "
+                f"via {txn.get('device')} location {case_location}"
+            )
             policy_matches = retrieve_policy_matches(query=search_query, top_k=2)
             policy_context = format_policy_context(policy_matches)
             policy_citations = format_policy_citations(policy_matches)
 
-            # Step 2: Invoke the backend public signature interface contract endpoint mapping parameters
             investigation_result = run_investigation(
                 transaction=txn,
                 customer_history=hist,
                 policy_context=policy_context,
-                policy_citations=policy_citations
+                policy_citations=policy_citations,
             )
-            
-            # Handle standard functional baseline exception scenarios gracefully
-            if not investigation_result or investigation_result.get("status") == "error":
-                st.error(f"Investigation execution failed: {investigation_result.get('message', 'Unknown backend exception state')}")
-                return
-                
-            # Stash analytical states safely inside Session Memory blocks for multi-turn tabs viewing access
-            st.session_state["active_result"] = investigation_result
-            st.session_state["last_evaluated_case_id"] = selected_id
-            st.success("Analysis cycle completely finalized. Review output results via the panels below.")
 
-    # Render results dynamically if stashed in session registers
-    if "active_result" in st.session_state and st.session_state.get("last_evaluated_case_id") == selected_id:
-        res = st.session_state["active_result"]
-        
-        st.write("")
-        st.header("📈 AI Recommendation Profile Output")
-        
-        # Recommendation Banner Card Design Elements
+            if not investigation_result or investigation_result.get("status") == "error":
+                st.error(f"Investigation failed: {investigation_result.get('message', 'Unknown error')}")
+            else:
+                case_results[selected_id] = investigation_result
+                st.rerun()
+
+    if not result:
+        st.info("Run the investigation to view the AI assessment and evidence for this case.")
+        return
+
+    # 4. AI Assessment strip
+    risk_level = result.get("risk_level", "N/A")
+    tier = tier_variant(risk_level)
+    st.markdown(f"""
+        <div class="assessment-strip tier-{tier}">
+            <div style="display:flex; gap:2.5rem; flex-wrap:wrap;">
+                <div>
+                    <div class="assessment-label">Risk Tier</div>
+                    <div class="assessment-value">{badge_html(risk_level, tier)}</div>
+                </div>
+                <div>
+                    <div class="assessment-label">Fraud Score</div>
+                    <div class="assessment-value">{result.get('fraud_score', 'N/A')} / 100</div>
+                </div>
+                <div>
+                    <div class="assessment-label">Recommendation</div>
+                    <div class="assessment-value">{result.get('recommendation', 'N/A')}</div>
+                </div>
+                <div>
+                    <div class="assessment-label">Confidence</div>
+                    <div class="assessment-value">{result.get('confidence', 'N/A')}</div>
+                </div>
+            </div>
+            <div class="assessment-summary">{result.get('investigation_summary', '')}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # 5. Evidence & Reasoning
+    st.markdown("##### Fraud Indicators")
+    indicators = result.get("fraud_indicators", [])
+    if indicators:
+        st.markdown("".join(f'<span class="tag-pill">{i}</span>' for i in indicators), unsafe_allow_html=True)
+    else:
+        st.caption("No specific fraud indicators identified.")
+
+    st.markdown("##### Reasoning")
+    for reason in result.get("reasoning", []):
+        st.markdown(f"- {reason}")
+
+    st.markdown("##### Referenced Policies")
+    policies = result.get("policy_reference", [])
+    if policies:
+        for policy in policies:
+            st.markdown(f'<div class="policy-citation">{policy}</div>', unsafe_allow_html=True)
+    else:
+        st.caption("No internal policy directly applicable to this case.")
+
+    st.write("---")
+
+    # 6. Analyst Disposition
+    st.markdown("##### Analyst Disposition")
+    if disposition:
         st.markdown(f"""
-            <div class="rec-banner">
-                <div class="rec-label">Operational Recommendation Directive</div>
-                <div class="rec-text">{res.get('recommendation', 'Pending Assessment')}</div>
+            <div class="decision-record">
+                {badge_html(disposition['decision'], case_status_variant(disposition['decision']))}
+                <div class="decision-record-note">{disposition['notes']}</div>
+                <div class="decision-record-meta">Reviewed by {disposition['analyst']} · {disposition['timestamp']}</div>
             </div>
         """, unsafe_allow_html=True)
-        
-        col_m1, col_m2, col_m3 = st.columns(3)
-        with col_m1:
-            render_metric_card("Calculated Fraud Score", f"{res.get('fraud_score', 0)} / 100")
-        with col_m2:
-            render_metric_card("Risk Assessment Level", res.get('risk_level', 'N/A'))
-        with col_m3:
-            render_metric_card("System Assurance Confidence", res.get('confidence', 'N/A'))
-            
-        st.write("")
-        st.subheader("Investigation Executive Summary Wrap-up")
-        st.info(res.get("investigation_summary", "No textual abstract returned."))
-        
-        col_details_1, col_details_2 = st.columns(2)
-        with col_details_1:
-            st.markdown("#### Observed Risk Indicators")
-            for indicator in res.get("fraud_indicators", []):
-                st.markdown(f"- ⚠️ {indicator}")
-        with col_details_2:
-            st.markdown("#### Decision Analytical Reasoning Logic")
-            for reason in res.get("reasoning", []):
-                st.markdown(f"- {reason}")
-                
-        st.write("")
-        st.markdown("#### Matched Corporate Compliance Policy References Citing")
-        for policy in res.get("policy_reference", []):
-            st.markdown(f"💼 **{policy}**")
-            
-        # Human In The Loop Validation Review Screen Section Interactive Buttons Node
-        st.write("---")
-        st.header("✍️ Human-in-the-Loop Operations Sign-off Panel")
-        st.caption("Provide manual structural review authorization confirmation overrides directly below.")
-        
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
-        with col_btn1:
-            if st.button("Confirm Approval Mandate", key="btn_app", use_container_width=True):
-                st.session_state["review_signed_id"] = selected_id
-                st.session_state["review_signed_status"] = "Approved and Cleared"
-        with col_btn2:
-            if st.button("Enforce Reject & Void Protocol", key="btn_rej", use_container_width=True):
-                st.session_state["review_signed_id"] = selected_id
-                st.session_state["review_signed_status"] = "Voided and Blocked"
-        with col_btn3:
-            if st.button("Escalate to Senior Fraud Desk", key="btn_esc", use_container_width=True):
-                st.session_state["review_signed_id"] = selected_id
-                st.session_state["review_signed_status"] = "Escalated for Secondary Manual Review Audits"
-                
-        if st.session_state.get("review_signed_id") == selected_id:
-            st.toast(f"Operational update processed completely: {st.session_state['review_signed_status']}", icon="✅")
-            st.success(f"Audit log synchronized: Case entry marked as **{st.session_state['review_signed_status']}**.")
+    else:
+        decision = st.radio(
+            "Decision", ["Approved", "Declined", "Escalated"],
+            horizontal=True, key=f"decision_{selected_id}"
+        )
+        notes = st.text_area(
+            "Analyst Notes (required)", key=f"notes_{selected_id}",
+            placeholder="State the rationale for this decision..."
+        )
+        if st.button("Submit Disposition", type="primary"):
+            if not notes.strip():
+                st.error("Analyst notes are required before submitting a disposition.")
+            else:
+                disposition_records[selected_id] = {
+                    "decision": decision,
+                    "notes": notes.strip(),
+                    "analyst": ANALYST_NAME,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                }
+                st.rerun()
 
-def render_metrics_dashboard_view() -> None:
-    """Compiles statistics summaries using native high-speed tracking dataframe charts tools."""
-    st.title("📊 Global Operations Metrics Analytics")
+def render_analytics_view() -> None:
+    """Operational reporting view: portfolio-level KPIs and exposure distribution."""
+    st.title("Analytics")
     cases = load_investigation_cases()
-    
+
     if not cases:
-        st.warning("No metrics registries files mounted into visualization engines paths.")
+        st.warning("No cases found in the active data source.")
         return
-        
+
     df = parse_cases_dataframe(cases)
-    
-    col_stat1, col_stat2, col_stat3 = st.columns(3)
-    with col_stat1:
-        render_metric_card("Total Logs Under Management", len(df))
-    with col_stat2:
-        render_metric_card("Mean Exposure Limit Profile", f"${df['amount'].mean():,.2f}")
-    with col_stat3:
-        render_metric_card("Historical Prior Fraud Incidents Count", int(df["past_fraud"].sum()))
-        
+    priority_counts = df["priority"].str.lower().value_counts()
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        render_metric_card("Total Cases", len(df))
+    with col2:
+        render_metric_card("Average Exposure", f"${df['amount'].mean():,.2f}")
+    with col3:
+        render_metric_card("Prior Fraud Incidents", int(df["past_fraud"].sum()))
+    with col4:
+        render_metric_card(
+            "Priority Mix",
+            f"{int(priority_counts.get('high', 0))}H / {int(priority_counts.get('medium', 0))}M / {int(priority_counts.get('low', 0))}L"
+        )
+
     st.write("")
-    st.subheader("Financial Exposure Value Distribution Across Active Portfolio Tickets")
-    # Native lightweight chart display rendering
+    st.subheader("Exposure by Case")
     st.bar_chart(data=df, x="case_id", y="amount")
+
+    st.write("")
+    st.subheader("Portfolio")
+    df["status"] = [_derive_status(cid, cs) for cid, cs in zip(df["case_id"], df["case_status"])]
+    st.dataframe(
+        df[["case_id", "customer", "merchant", "amount", "priority", "status"]],
+        use_container_width=True,
+        hide_index=True,
+    )
