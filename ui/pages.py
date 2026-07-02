@@ -3,6 +3,7 @@ Purpose: Assembling main dashboard view configurations, interaction workflows, a
 """
 from datetime import datetime
 import logging
+import altair as alt
 import streamlit as st
 from ui.components import (
     load_investigation_cases,
@@ -221,7 +222,7 @@ def render_investigation_view(current_role: str = ANALYST_NAME) -> None:
             <div class="case-header-id">{selected_id} — {txn.get('customer_name', 'Unknown Customer')}</div>
             <div class="case-header-meta">
                 Opened {case_package.get('created_date', 'N/A')} &nbsp;·&nbsp;
-                Priority: {case_package.get('priority', 'N/A')} &nbsp;&nbsp;
+                Priority: {badge_html(case_package.get('priority', 'N/A'), tier_variant(case_package.get('priority')))} &nbsp;&nbsp;
                 {badge_html(status_label, case_status_variant(status_label))}
             </div>
         </div>
@@ -252,7 +253,7 @@ def render_investigation_view(current_role: str = ANALYST_NAME) -> None:
     if current_role == ANALYST_NAME:
         action_label = "Re-run Investigation" if result else "Run Investigation"
         button_type = "secondary" if result else "primary"
-        if st.button(action_label, type=button_type):
+        if st.button(action_label, type=button_type, key="run_investigation_action"):
             with st.spinner("Retrieving policy context and running investigation..."):
                 search_query = (
                     f"{txn.get('merchant_category')} purchase of {txn.get('amount')} "
@@ -469,6 +470,15 @@ def render_analytics_view() -> None:
     tool's measured business impact."""
     st.title("Analytics")
     cases = load_investigation_cases()
+    theme_mode = st.session_state.get("theme_mode", "Dark").strip().lower()
+    is_light = theme_mode == "light"
+
+    chart_background = "#F8FAFC" if is_light else "#0F172A"
+    label_color = "#0F172A" if is_light else "#E2E8F0"
+    title_color = "#0F172A" if is_light else "#F8FAFC"
+    grid_color = "rgba(148, 163, 184, 0.18)" if is_light else "rgba(148, 163, 184, 0.14)"
+    axis_color = "#CBD5E1" if is_light else "#334155"
+    band_colors = ["#E11D48", "#FBBF24", "#22C55E"] if is_light else ["#FB7185", "#FBBF24", "#22C55E"]
 
     if not cases:
         st.warning("No cases found in the active data source.")
@@ -503,7 +513,52 @@ def render_analytics_view() -> None:
 
     st.write("")
     st.subheader("Exposure by Case")
-    st.bar_chart(data=df, x="case_id", y="amount", color="#607456")
+    exposure_df = df[["case_id", "amount", "priority"]].copy()
+    exposure_df["exposure_band"] = exposure_df["amount"].apply(
+        lambda value: "High" if value >= exposure_df["amount"].quantile(0.75) else (
+            "Medium" if value >= exposure_df["amount"].quantile(0.40) else "Low"
+        )
+    )
+
+    exposure_chart = (
+        alt.Chart(exposure_df)
+        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
+        .encode(
+            x=alt.X("case_id:N", sort="-y", title=None, axis=alt.Axis(labelAngle=-35, labelColor=label_color, tickColor=axis_color, domainColor=axis_color)),
+            y=alt.Y("amount:Q", title="Exposure ($)", axis=alt.Axis(labelColor=label_color, titleColor=title_color, gridColor=grid_color)),
+            color=alt.Color(
+                "exposure_band:N",
+                scale=alt.Scale(
+                    domain=["High", "Medium", "Low"],
+                    range=band_colors,
+                ),
+                legend=alt.Legend(title=None, orient="top", labelColor=label_color, titleColor=title_color),
+            ),
+            tooltip=[
+                alt.Tooltip("case_id:N", title="Case"),
+                alt.Tooltip("amount:Q", title="Exposure", format="$,.2f"),
+                alt.Tooltip("priority:N", title="Priority"),
+                alt.Tooltip("exposure_band:N", title="Band"),
+            ],
+        )
+        .properties(height=340)
+        .configure_view(strokeWidth=0, fill=chart_background)
+        .configure_axis(
+            labelFont="Manrope",
+            titleFont="Manrope",
+            gridColor=grid_color,
+            domainColor=axis_color,
+            tickColor=axis_color,
+        )
+        .configure_legend(
+            labelFont="Manrope",
+            titleFont="Manrope",
+            labelColor=label_color,
+            titleColor=title_color,
+        )
+    )
+
+    st.altair_chart(exposure_chart, use_container_width=True)
 
     st.write("")
     st.subheader("Portfolio")
