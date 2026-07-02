@@ -357,6 +357,58 @@ def apply_custom_css(theme_mode: str = "Dark") -> None:
             }
             .decision-record-note { font-size: 0.88rem; color: var(--color-text-body); margin-top: 0.4rem; line-height: 1.5; }
             .decision-record-meta { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 0.5rem; }
+
+            /* Targeted Streamlit generated class override */
+            .st-c2.st-bo.st-c3.st-c4.st-br.st-bs.st-c5.st-bt.st-c6 {
+                background-color: #E5E7EB !important;
+                border-color: #D1D5DB !important;
+                color: #374151 !important;
+            }
+
+            /* Stable selector for Streamlit/BaseWeb select controls */
+            div[data-baseweb="select"] {
+                background-color: #E5E7EB !important;
+                border-color: #D1D5DB !important;
+                border-radius: 10px !important;
+            }
+            div[data-baseweb="select"] > div {
+                background-color: #E5E7EB !important;
+                border-color: #D1D5DB !important;
+            }
+            div[data-baseweb="select"] input,
+            div[data-baseweb="select"] [role="combobox"],
+            div[data-baseweb="select"] [aria-label*="Case"] {
+                color: #374151 !important;
+                background-color: transparent !important;
+            }
+            div[data-baseweb="select"] svg,
+            div[data-baseweb="select"] path {
+                color: #6B7280 !important;
+                fill: currentColor !important;
+            }
+
+            /* Dropdown menu for BaseWeb select */
+            div[role="listbox"],
+            ul[role="listbox"],
+            [data-baseweb="popover"] [role="listbox"] {
+                background-color: #F3F4F6 !important;
+                border: 1px solid #D1D5DB !important;
+            }
+            div[role="option"],
+            li[role="option"],
+            [data-baseweb="popover"] [role="option"] {
+                background-color: #F3F4F6 !important;
+                color: #374151 !important;
+            }
+            div[role="option"]:hover,
+            li[role="option"]:hover,
+            [data-baseweb="popover"] [role="option"]:hover,
+            div[role="option"][aria-selected="true"],
+            li[role="option"][aria-selected="true"],
+            [data-baseweb="popover"] [role="option"][aria-selected="true"] {
+                background-color: #E5E7EB !important;
+                color: #111827 !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
