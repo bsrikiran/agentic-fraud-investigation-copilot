@@ -38,7 +38,8 @@ def main() -> None:
         initial_sidebar_state="expanded"
     )
 
-    apply_custom_css()
+    theme_mode = st.session_state.get("theme_mode", "Dark")
+    apply_custom_css(theme_mode)
 
     # A widget's session_state value can't be mutated after it's instantiated in the same run,
     # so cross-view navigation (e.g. the queue's "Open" button) stages the target here and this
@@ -47,6 +48,7 @@ def main() -> None:
         st.session_state["nav_radio"] = st.session_state.pop("_pending_nav")
 
     st.sidebar.markdown("### Agentic Fraud Investigation Copilot")
+    st.sidebar.radio("Theme", ["Dark", "Light"], key="theme_mode", horizontal=True)
     current_role = st.sidebar.radio("Role", [ANALYST_NAME, FRAUD_MANAGER_NAME], key="current_role")
     st.sidebar.write("---")
 

@@ -32,6 +32,3 @@ pytest>=8.4.0
 
 # ---------- Logging ----------
 rich>=14.0.0
-
-# --------- interface ----------
-pysqlite3-binary
