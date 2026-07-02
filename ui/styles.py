@@ -255,9 +255,9 @@ def apply_custom_css(theme_mode: str = "Dark") -> None:
                 border: 1px solid transparent;
                 box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
             }
-            .badge-high       { background-color: rgba(251, 113, 133, 0.20); color: #FFE4E6; border-color: rgba(251, 113, 133, 0.26); }
-            .badge-medium     { background-color: rgba(168, 85, 247, 0.18); color: #F5D0FE; border-color: rgba(168, 85, 247, 0.26); }
-            .badge-low        { background-color: rgba(34, 211, 238, 0.16); color: #CFFAFE; border-color: rgba(34, 211, 238, 0.24); }
+            .badge-high       { background-color: rgba(251, 113, 133, 0.20) !important; color: #FFE4E6 !important; border-color: rgba(251, 113, 133, 0.26) !important; }
+            .badge-medium     { background-color: rgba(251, 191, 36, 0.18) !important; color: #FEF3C7 !important; border-color: rgba(251, 191, 36, 0.24) !important; }
+            .badge-low        { background-color: rgba(251, 191, 36, 0.18) !important; color: #FEF3C7 !important; border-color: rgba(251, 191, 36, 0.24) !important; }
             .badge-neutral    { background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: rgba(148, 163, 184, 0.16); }
             .badge-approved   { background-color: rgba(34, 197, 94, 0.18); color: #DCFCE7; border-color: rgba(34, 197, 94, 0.24); }
             .badge-declined   { background-color: rgba(251, 113, 133, 0.20); color: #FFE4E6; border-color: rgba(251, 113, 133, 0.26); }
@@ -319,8 +319,8 @@ def apply_custom_css(theme_mode: str = "Dark") -> None:
                 box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(34, 211, 238, 0.05);
             }
             .assessment-strip.tier-high   { border-left-color: var(--color-critical); }
-            .assessment-strip.tier-medium { border-left-color: var(--color-accent); }
-            .assessment-strip.tier-low    { border-left-color: var(--color-highlight); }
+            .assessment-strip.tier-medium { border-left-color: var(--color-highlight); }
+            .assessment-strip.tier-low    { border-left-color: #22C55E; }
             .assessment-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
             .assessment-value { font-size: 1.05rem; font-weight: 600; color: var(--color-text-heading); margin-top: 0.1rem; }
             .assessment-summary { font-size: 0.92rem; color: var(--color-text-body); margin-top: 0.6rem; line-height: 1.5; }
@@ -547,16 +547,24 @@ def apply_custom_css(theme_mode: str = "Dark") -> None:
                     color: #0F172A;
                 }
                 .badge-high, .badge-declined, .badge-escalated {
-                    background-color: rgba(190, 18, 60, 0.12);
-                    color: #9F1239;
+                    background-color: rgba(190, 18, 60, 0.12) !important;
+                    color: #9F1239 !important;
                 }
-                .badge-medium, .badge-review, .badge-returned {
-                    background-color: rgba(109, 40, 217, 0.12);
-                    color: #5B21B6;
+                .badge-medium {
+                    background-color: rgba(251, 191, 36, 0.16) !important;
+                    color: #92400E !important;
                 }
-                .badge-low, .badge-approved {
-                    background-color: rgba(29, 78, 216, 0.12);
-                    color: #1D4ED8;
+                .badge-review, .badge-returned {
+                    background-color: rgba(109, 40, 217, 0.12) !important;
+                    color: #5B21B6 !important;
+                }
+                .badge-low {
+                    background-color: rgba(251, 191, 36, 0.16) !important;
+                    color: #92400E !important;
+                }
+                .badge-approved {
+                    background-color: rgba(34, 197, 94, 0.14) !important;
+                    color: #166534 !important;
                 }
                 .badge-neutral, .badge-closed {
                     background-color: rgba(226, 232, 240, 0.98);

@@ -222,7 +222,7 @@ def render_investigation_view(current_role: str = ANALYST_NAME) -> None:
             <div class="case-header-id">{selected_id} — {txn.get('customer_name', 'Unknown Customer')}</div>
             <div class="case-header-meta">
                 Opened {case_package.get('created_date', 'N/A')} &nbsp;·&nbsp;
-                Priority: {case_package.get('priority', 'N/A')} &nbsp;&nbsp;
+                Priority: {badge_html(case_package.get('priority', 'N/A'), tier_variant(case_package.get('priority')))} &nbsp;&nbsp;
                 {badge_html(status_label, case_status_variant(status_label))}
             </div>
         </div>
@@ -478,7 +478,7 @@ def render_analytics_view() -> None:
     title_color = "#0F172A" if is_light else "#F8FAFC"
     grid_color = "rgba(148, 163, 184, 0.18)" if is_light else "rgba(148, 163, 184, 0.14)"
     axis_color = "#CBD5E1" if is_light else "#334155"
-    band_colors = ["#E11D48", "#7C3AED", "#2563EB"] if is_light else ["#FB7185", "#A855F7", "#22D3EE"]
+    band_colors = ["#E11D48", "#FBBF24", "#22C55E"] if is_light else ["#FB7185", "#FBBF24", "#22C55E"]
 
     if not cases:
         st.warning("No cases found in the active data source.")
